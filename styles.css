@@ -458,3 +458,26 @@ p { margin: 0 0 1em; text-wrap: pretty; }
 @media (hover: hover) and (pointer: fine) {
   .form select:hover { border-color: var(--green); }
 }
+
+/* ---------- Date fields (iOS Safari gives them an intrinsic min-width that overflows) ---------- */
+.form label { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.form .row > * { min-width: 0; }
+.form input[type="date"] {
+  -webkit-appearance: none; appearance: none;
+  display: block; min-width: 0; max-width: 100%;
+  text-align: left; line-height: 1.4; cursor: pointer;
+  padding-right: 52px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F7A25' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='2.5'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E"),
+    radial-gradient(circle, var(--mint) 13.5px, transparent 14.5px);
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 13px center, right 10px center;
+  background-size: 16px 16px, 28px 28px;
+}
+.form input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.form input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute; right: 0; top: 0; width: 56px; height: 100%; opacity: 0; cursor: pointer;
+}
+.form input[type="date"] { position: relative; }
+.form input[type="date"]:focus { background-color: #fff; }
+.form input[type="date"].is-invalid { background-color: #FFF6F0; }
