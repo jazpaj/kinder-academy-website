@@ -1,7 +1,6 @@
 (() => {
-  const doc = document.documentElement;
-  doc.classList.add('js');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const smooth = reduceMotion ? 'auto' : 'smooth';
 
   /* Header shadow + mobile sticky CTA */
   const header = document.querySelector('.header');
@@ -28,6 +27,17 @@
     if (e.key === 'Escape' && nav.classList.contains('is-open')) { setMenu(false); menuBtn.focus(); }
   });
 
+  /* Beige hero background ends just under the intro copy */
+  const center = document.querySelector('.center');
+  const intro = document.querySelector('.center__intro');
+  const sizeBg = () => {
+    const h = intro.getBoundingClientRect().bottom - center.getBoundingClientRect().top;
+    center.style.setProperty('--bg-h', `${Math.round(h)}px`);
+  };
+  sizeBg();
+  if ('ResizeObserver' in window) new ResizeObserver(sizeBg).observe(intro);
+  window.addEventListener('resize', sizeBg);
+
   /* Read more toggles */
   document.querySelectorAll('[data-toggle]').forEach((btn) => {
     const target = document.getElementById(btn.dataset.toggle);
@@ -35,13 +45,89 @@
       const open = target.hidden;
       target.hidden = !open;
       btn.setAttribute('aria-expanded', String(open));
-      btn.textContent = open ? 'Read less' : 'Read more';
+      btn.textContent = open ? 'Read Less' : 'Read More…';
     });
   });
 
-  /* Program tabs (WAI-ARIA tabs pattern) */
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  const select = (tab, focus) => {
+  /* Photo slider */
+  const track = document.querySelector('.slider__track');
+  if (track) {
+    const slides = [...track.children];
+    const dots = document.querySelector('.slider__dots');
+    slides.forEach(() => dots.appendChild(document.createElement('span')));
+    const current = () => Math.round(track.scrollLeft / track.clientWidth);
+    const paint = () => [...dots.children].forEach((d, i) => d.classList.toggle('on', i === current()));
+    const go = (i) => {
+      const n = (i + slides.length) % slides.length;
+      track.scrollTo({ left: n * track.clientWidth, behavior: smooth });
+    };
+    document.querySelector('.slider__arrow--prev').addEventListener('click', () => go(current() - 1));
+    document.querySelector('.slider__arrow--next').addEventListener('click', () => go(current() + 1));
+    track.addEventListener('scroll', () => requestAnimationFrame(paint), { passive: true });
+    track.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); go(current() + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); go(current() - 1); }
+    });
+    paint();
+  }
+
+  /* Program cards: the detail panel opens directly under the clicked card's row */
+  const grid = document.querySelector('.prog-grid');
+  const cards = [...grid.querySelectorAll('.prog')];
+  const panels = [...document.querySelectorAll('.prog-panel')];
+  panels.forEach((p) => grid.appendChild(p));
+  document.querySelector('.prog-panels').remove();
+  const placePanel = (card, panel) => {
+    cards.forEach((c, i) => { c.style.order = String(i * 2); });
+    panel.style.order = '999';
+    const top = card.offsetTop;
+    let last = cards.indexOf(card);
+    cards.forEach((c, i) => { if (Math.abs(c.offsetTop - top) < 4) last = Math.max(last, i); });
+    panel.style.order = String(last * 2 + 1);
+  };
+  let openCard = null;
+  cards.forEach((card) => {
+    const panel = document.getElementById(card.getAttribute('aria-controls'));
+    card.addEventListener('click', () => {
+      const willOpen = openCard !== card;
+      cards.forEach((c) => {
+        c.setAttribute('aria-expanded', 'false');
+        document.getElementById(c.getAttribute('aria-controls')).hidden = true;
+      });
+      openCard = null;
+      if (willOpen) {
+        card.setAttribute('aria-expanded', 'true');
+        panel.hidden = false;
+        placePanel(card, panel);
+        openCard = card;
+      }
+    });
+  });
+  window.addEventListener('resize', () => {
+    if (openCard) placePanel(openCard, document.getElementById(openCard.getAttribute('aria-controls')));
+  });
+
+  /* Program links pre-fill the tuition form */
+  const programSelect = document.getElementById('programSelect');
+  document.querySelectorAll('[data-program]').forEach((a) => {
+    a.addEventListener('click', () => { programSelect.value = a.dataset.program; });
+  });
+
+  /* Reviews: one at a time */
+  const quotes = [...document.querySelectorAll('.quote')];
+  let qi = 0;
+  const showQuote = (n) => {
+    quotes[qi].hidden = true;
+    qi = (n + quotes.length) % quotes.length;
+    quotes[qi].hidden = false;
+  };
+  document.querySelectorAll('.quotes__arrow').forEach((b) => {
+    b.addEventListener('click', () => showQuote(qi + Number(b.dataset.dir)));
+  });
+
+  /* Offerings tabs (WAI-ARIA tabs pattern) */
+  const tabs = [...document.querySelectorAll('.offers [role="tab"]')];
+  const selectTab = (tab, focus) => {
     tabs.forEach((t) => {
       const on = t === tab;
       t.setAttribute('aria-selected', String(on));
@@ -49,24 +135,87 @@
       document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
     });
     if (focus) tab.focus();
+    tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth });
   };
   tabs.forEach((tab, i) => {
-    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('click', () => selectTab(tab));
     tab.addEventListener('keydown', (e) => {
       let n = null;
       if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
       if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
       if (e.key === 'Home') n = 0;
       if (e.key === 'End') n = tabs.length - 1;
-      if (n !== null) { e.preventDefault(); select(tabs[n], true); }
+      if (n !== null) { e.preventDefault(); selectTab(tabs[n], true); }
     });
   });
 
-  /* Program buttons pre-fill the inquiry form */
-  const programSelect = document.getElementById('programSelect');
-  document.querySelectorAll('[data-program]').forEach((a) => {
-    a.addEventListener('click', () => { programSelect.value = a.dataset.program; });
-  });
+  /* Tour scheduler: pick a weekday + time slot (request only, confirmed by staff) */
+  const calGrid = document.querySelector('.cal__grid');
+  if (calGrid) {
+    const title = document.querySelector('.cal__title');
+    const dayLabel = document.querySelector('.slots__day');
+    const slotGrid = document.querySelector('.slots__grid');
+    const picked = document.querySelector('.tour__picked');
+    const dateInput = document.getElementById('tourDate');
+    const timeInput = document.getElementById('tourTime');
+    const prevBtn = document.querySelector('.cal__nav[data-month="-1"]');
+    const nextBtn = document.querySelector('.cal__nav[data-month="1"]');
+    const TIMES = ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM', '4:00 PM'];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const first = new Date(today); first.setDate(first.getDate() + 1);
+    while (first.getDay() === 0 || first.getDay() === 6) first.setDate(first.getDate() + 1);
+    const limit = new Date(today); limit.setDate(limit.getDate() + 60);
+    let view = new Date(first.getFullYear(), first.getMonth(), 1);
+    let sel = new Date(first);
+    let time = '';
+    const fmtLong = (d) => d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const sameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
+    const ok = (d) => d >= first && d <= limit && d.getDay() !== 0 && d.getDay() !== 6;
+
+    const updatePicked = () => {
+      dateInput.value = sel ? fmtLong(sel) : '';
+      timeInput.value = time;
+      picked.textContent = sel && time ? `Requested: ${fmtLong(sel)} at ${time}` : sel ? `${fmtLong(sel)}: now choose a time.` : 'Pick a date and time above.';
+    };
+    const renderSlots = () => {
+      slotGrid.innerHTML = '';
+      dayLabel.textContent = sel ? fmtLong(sel) : 'Choose a date';
+      if (!sel) { slotGrid.innerHTML = '<p class="slots__empty">Select a weekday to see tour times.</p>'; return; }
+      TIMES.forEach((t) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'slot'; b.textContent = t;
+        b.setAttribute('aria-pressed', String(t === time));
+        b.addEventListener('click', () => { time = t; renderSlots(); updatePicked(); });
+        slotGrid.appendChild(b);
+      });
+    };
+    const renderCal = () => {
+      title.textContent = view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      calGrid.innerHTML = '';
+      ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((d) => {
+        const s = document.createElement('span'); s.className = 'cal__dow'; s.textContent = d; s.setAttribute('aria-hidden', 'true');
+        calGrid.appendChild(s);
+      });
+      const startPad = view.getDay();
+      for (let i = 0; i < startPad; i++) calGrid.appendChild(document.createElement('span'));
+      const days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+      for (let d = 1; d <= days; d++) {
+        const date = new Date(view.getFullYear(), view.getMonth(), d);
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'cal__day'; b.textContent = d;
+        b.setAttribute('aria-label', fmtLong(date));
+        b.disabled = !ok(date);
+        b.setAttribute('aria-pressed', String(sameDay(date, sel)));
+        b.addEventListener('click', () => { sel = date; time = ''; renderCal(); renderSlots(); updatePicked(); });
+        calGrid.appendChild(b);
+      }
+      prevBtn.disabled = view <= new Date(first.getFullYear(), first.getMonth(), 1);
+      nextBtn.disabled = new Date(view.getFullYear(), view.getMonth() + 1, 1) > limit;
+    };
+    prevBtn.addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCal(); });
+    nextBtn.addEventListener('click', () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCal(); });
+    renderCal(); renderSlots(); updatePicked();
+  }
 
   /* Forms: validate, then open a pre-filled email to the center.
      (Swap this for a form service / CRM endpoint when one is set up.) */
@@ -76,17 +225,19 @@
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const bads = [];
-      form.querySelectorAll('input, select, textarea').forEach((el) => {
+      form.querySelectorAll('input:not([type=hidden]), select, textarea').forEach((el) => {
         const bad = !el.checkValidity();
         el.classList.toggle('is-invalid', bad);
         el.setAttribute('aria-invalid', String(bad));
         if (bad) bads.push(el);
       });
-      if (bads.length) {
-        const names = bads.map((el) => el.closest('label').firstChild.textContent.trim());
+      const names = bads.map((el) => el.closest('label').firstChild.textContent.trim());
+      const tourTime = form.querySelector('#tourTime');
+      if (tourTime && !tourTime.value) names.unshift('Tour date & time');
+      if (names.length) {
         note.className = 'form__note err';
         note.textContent = `Please complete: ${names.join(', ')}.`;
-        bads[0].focus();
+        if (bads[0]) bads[0].focus();
         return;
       }
       const lines = [...new FormData(form)]
@@ -102,51 +253,6 @@
         e.target.classList.remove('is-invalid');
         e.target.setAttribute('aria-invalid', 'false');
       }
-    });
-  });
-
-  /* Pause hero video for reduced-motion users */
-  const video = document.querySelector('.blob video');
-  const vBtn = document.querySelector('.video-toggle');
-  const syncBtn = () => {
-    const paused = video.paused;
-    vBtn.setAttribute('aria-pressed', String(paused));
-    vBtn.setAttribute('aria-label', paused ? 'Play video' : 'Pause video');
-  };
-  if (video && vBtn) {
-    if (reduceMotion) { video.removeAttribute('autoplay'); video.pause(); }
-    vBtn.addEventListener('click', () => { video.paused ? video.play() : video.pause(); });
-    video.addEventListener('play', syncBtn);
-    video.addEventListener('pause', syncBtn);
-    syncBtn();
-  }
-
-  /* Reveal on scroll */
-  const items = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        const el = entry.target;
-        const siblings = [...el.parentElement.children].filter((c) => c.classList.contains('reveal'));
-        const idx = Math.max(0, siblings.indexOf(el));
-        el.style.transitionDelay = reduceMotion ? '0ms' : `${Math.min(idx, 6) * 60}ms`;
-        el.classList.add('is-in');
-        io.unobserve(el);
-      });
-    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.08 });
-    items.forEach((el) => io.observe(el));
-  } else {
-    items.forEach((el) => el.classList.add('is-in'));
-  }
-
-  /* Reviews carousel arrows */
-  const track = document.querySelector('.reviews__track');
-  document.querySelectorAll('[data-scroll]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const card = track.querySelector('.review');
-      const step = card ? card.getBoundingClientRect().width + 24 : track.clientWidth;
-      track.scrollBy({ left: step * Number(btn.dataset.scroll), behavior: reduceMotion ? 'auto' : 'smooth' });
     });
   });
 
