@@ -101,9 +101,8 @@ p { margin: 0 0 1em; text-wrap: pretty; }
 .brand img { width: 68px; height: auto; }
 .brand__text { display: grid; grid-template-columns: auto auto; column-gap: .3em; font-family: var(--font-head); font-weight: 800; font-size: 1.6rem; line-height: 1; }
 .brand__name { grid-column: 1 / -1; white-space: nowrap; }
-.brand__text .o { color: var(--orange); }
-.brand__text .g { color: var(--green); }
-.brand__text small { grid-column: 1 / -1; font-family: var(--font-body); font-weight: 700; font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--brown-500); margin-top: 6px; }
+.brand__text .o, .brand__text .g { color: var(--brown); }
+.brand__text small { grid-column: 1 / -1; font-family: var(--font-body); font-weight: 700; font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--green); margin-top: 6px; }
 .nav { display: flex; align-items: center; gap: 30px; }
 .nav > a:not(.btn) { color: var(--brown); text-decoration: none; font-weight: 600; font-size: 1rem; white-space: nowrap; position: relative; }
 .nav > a:not(.btn)::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: var(--leaf); transform: scaleX(0); transform-origin: left; transition: transform 200ms var(--ease-out); }
