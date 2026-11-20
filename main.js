@@ -71,42 +71,6 @@
     paint();
   }
 
-  /* Program cards: the detail panel opens directly under the clicked card's row */
-  const grid = document.querySelector('.prog-grid');
-  const cards = [...grid.querySelectorAll('.prog')];
-  const panels = [...document.querySelectorAll('.prog-panel')];
-  panels.forEach((p) => grid.appendChild(p));
-  document.querySelector('.prog-panels').remove();
-  const placePanel = (card, panel) => {
-    cards.forEach((c, i) => { c.style.order = String(i * 2); });
-    panel.style.order = '999';
-    const top = card.offsetTop;
-    let last = cards.indexOf(card);
-    cards.forEach((c, i) => { if (Math.abs(c.offsetTop - top) < 4) last = Math.max(last, i); });
-    panel.style.order = String(last * 2 + 1);
-  };
-  let openCard = null;
-  cards.forEach((card) => {
-    const panel = document.getElementById(card.getAttribute('aria-controls'));
-    card.addEventListener('click', () => {
-      const willOpen = openCard !== card;
-      cards.forEach((c) => {
-        c.setAttribute('aria-expanded', 'false');
-        document.getElementById(c.getAttribute('aria-controls')).hidden = true;
-      });
-      openCard = null;
-      if (willOpen) {
-        card.setAttribute('aria-expanded', 'true');
-        panel.hidden = false;
-        placePanel(card, panel);
-        openCard = card;
-      }
-    });
-  });
-  window.addEventListener('resize', () => {
-    if (openCard) placePanel(openCard, document.getElementById(openCard.getAttribute('aria-controls')));
-  });
-
   /* Program links pre-fill the tuition form */
   const programSelect = document.getElementById('programSelect');
   document.querySelectorAll('[data-program]').forEach((a) => {
@@ -125,27 +89,28 @@
     b.addEventListener('click', () => showQuote(qi + Number(b.dataset.dir)));
   });
 
-  /* Offerings tabs (WAI-ARIA tabs pattern) */
-  const tabs = [...document.querySelectorAll('.offers [role="tab"]')];
-  const selectTab = (tab, focus) => {
-    tabs.forEach((t) => {
-      const on = t === tab;
-      t.setAttribute('aria-selected', String(on));
-      t.tabIndex = on ? 0 : -1;
-      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
-    });
-    if (focus) tab.focus();
-    tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth });
-  };
-  tabs.forEach((tab, i) => {
-    tab.addEventListener('click', () => selectTab(tab));
-    tab.addEventListener('keydown', (e) => {
-      let n = null;
-      if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
-      if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
-      if (e.key === 'Home') n = 0;
-      if (e.key === 'End') n = tabs.length - 1;
-      if (n !== null) { e.preventDefault(); selectTab(tabs[n], true); }
+  /* Tabs (WAI-ARIA tabs pattern): age programs + center offerings */
+  document.querySelectorAll('[role="tablist"]').forEach((list) => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const selectTab = (tab, focus) => {
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      if (focus) tab.focus();
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => selectTab(tab));
+      tab.addEventListener('keydown', (e) => {
+        let n = null;
+        if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
+        if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
+        if (e.key === 'Home') n = 0;
+        if (e.key === 'End') n = tabs.length - 1;
+        if (n !== null) { e.preventDefault(); selectTab(tabs[n], true); }
+      });
     });
   });
 
